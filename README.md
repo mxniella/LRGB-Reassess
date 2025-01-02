@@ -23,6 +23,24 @@ pip install wandb
 conda clean --all
 ```
 
+## Installations for MacOS
+```bash
+conda create -n graphgps python=3.10
+conda activate graphgps
+
+conda install pytorch torchvision torchaudio -c pytorch
+pip install torch_geometric==2.3.0
+conda install pyg -c pyg -c conda-forge
+
+conda install openbabel fsspec rdkit -c conda-forge
+
+pip install pytorch-lightning yacs torchmetrics
+pip install performer-pytorch
+pip install tensorboardX
+pip install ogb
+pip install wandb
+
+```
 
 ### Running Training
 ```bash
