@@ -1,6 +1,7 @@
 import torch
 
 import numpy as np
+import torch.nn.functional as F
 
 from torch_geometric.datasets import LRGBDataset
 from torch_geometric.transforms import BaseTransform
@@ -21,6 +22,7 @@ class LaplacianPEWithAtomEncoding(BaseTransform):
         evals, evects = np.linalg.eigh(L.toarray())
         
         # Select top-k eigenvectors and normalize
+        max_freqs = self.num_eigenvectors
         idx = evals.argsort()[:self.num_eigenvectors]
         evals, evects = evals[idx], np.real(evects[:, idx])
         evals = torch.from_numpy(np.real(evals)).clamp_min(0)
@@ -28,14 +30,20 @@ class LaplacianPEWithAtomEncoding(BaseTransform):
         evects = torch.from_numpy(evects).float()
         evects = self._l2_normalize(evects)
 
-        # Pad and save eigenvalues and eigenvectors
-        data.lap_pe = evects
-        if data.x is not None:
-            data.x = torch.cat([data.x, evects], dim=1)  # Concatenate LapPE to node features
+        # Pad eigenvalues and eigenvectors if necessary
+        num_nodes = data.num_nodes
+        if num_nodes < max_freqs:
+            evects = F.pad(evects, (0, max_freqs - num_nodes), value=float('nan'))
+            evals = F.pad(evals, (0, max_freqs - num_nodes), value=float('nan')).unsqueeze(0)
         else:
-            data.x = evects
-        return data
+            evals = evals.unsqueeze(0)
 
+        evals = evals.repeat(num_nodes, 1).unsqueeze(2)
+
+        # Concatenate Laplacian PE with node features
+        data.x = torch.cat([data.x, evects], dim=1)
+        return data
+    
     def _l2_normalize(self, eigenvectors, eps=1e-12):
         denom = eigenvectors.norm(p=2, dim=0, keepdim=True).clamp_min(eps)
         return eigenvectors / denom
